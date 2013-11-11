@@ -8,6 +8,9 @@
 #include <sys/unistd.h>
 #include <sys/fcntl.h>
 #include <time.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 
 /*typedef struct users

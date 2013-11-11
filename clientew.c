@@ -1,3 +1,7 @@
+/*COMANDO PARA COMPILAR : 
+	gcc `pkg-config gtk+-2.0 --cflags` clientew.c -o hello_world_gtk `pkg-config gtk+-2.0 --libs` -lpthread
+     */
+
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -9,6 +13,11 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <gtk/gtk.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 
 int sock1; 
 int sock2; 
@@ -66,11 +75,55 @@ int set_name(int argc, char** argv){
 
 
 void store_filename (GtkWidget *widget, gpointer user_data) {
-   GtkWidget *file_selector = GTK_WIDGET (user_data);
-   const gchar *selected_filename;
+    GtkWidget *file_selector = GTK_WIDGET (user_data);
+    char *filename;
+	off_t offset = 0;///--------
+	int fd;
+	int desc;
+	int rc;
+	struct stat stat_buf;
 
-   selected_filename = gtk_file_selection_get_filename (GTK_FILE_SELECTION (file_selector));
-   g_print ("Selected filename: %s\n", selected_filename);
+    filename = gtk_file_selection_get_filename (GTK_FILE_SELECTION (file_selector));
+    g_print ("Selected filename: %s\n", filename);
+
+	//-------------------------SENDFILE PART FROM http://linuxgazette.net/91/misc/tranter/server.c.txt--------------------
+
+	/* null terminate and strip any \r and \n from filename */
+	//	filename[rc] = '\0';
+    if (filename[strlen(filename)-1] == '\n')
+      filename[strlen(filename)-1] = '\0';
+    if (filename[strlen(filename)-1] == '\r')
+      filename[strlen(filename)-1] = '\0';
+
+    fprintf(stderr, "received request to send file %s\n", filename);
+
+    /* open the file to be sent */
+    fd = open(filename, O_RDONLY);
+    if (fd == -1) {
+      fprintf(stderr, "unable to open '%s': %s\n", filename, strerror(errno));
+      exit(1);
+    }
+
+    /* get the size of the file to be sent */
+    fstat(fd, &stat_buf);
+
+    /* copy file using sendfile */
+    offset = 0;
+    rc = sendfile (sock1, fd, &offset, stat_buf.st_size);
+    if (rc == -1) {
+      fprintf(stderr, "error from sendfile: %s\n", strerror(errno));
+      exit(1);
+    }
+    if (rc != stat_buf.st_size) {
+      fprintf(stderr, "incomplete transfer from sendfile: %d of %d bytes\n",
+              rc,
+              (int)stat_buf.st_size);
+      exit(1);
+    }
+
+    /* close descriptor for file that was sent */
+    close(fd);
+	//--------------------------------------------------------------------------------------
 }
    
 static void sfile(Widgets *w)
@@ -120,30 +173,31 @@ static void insert_text (GtkButton *button,Widgets *w)
 	strcat(tmp, text); /* add the extension */	
 	send(sock1, tmp, strlen(tmp)+1, 0);
 }
+
 static void insert_text2(Widgets *w,char* text2)
 {
-     GtkTextBuffer *buffer;
-     GtkTextMark *mark;
-     GtkTextIter iter;
+    GtkTextBuffer *buffer;
+    GtkTextMark *mark;
+    GtkTextIter iter;
 
-     buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (w->textview));
+    buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (w->textview));
 
-     mark = gtk_text_buffer_get_insert (buffer);
-     gtk_text_buffer_get_iter_at_mark (buffer, &iter, mark);
+    mark = gtk_text_buffer_get_insert (buffer);
+    gtk_text_buffer_get_iter_at_mark (buffer, &iter, mark);
 
 	if (gtk_text_buffer_get_char_count(buffer))
-    gtk_text_buffer_insert (buffer, &iter, "\n", 1);
+     gtk_text_buffer_insert (buffer, &iter, "\n", 1);
      gtk_text_buffer_insert (buffer, &iter, text2, -1);
 
 }
 
 int connect_cli(char* port){
-	char* ip="10.5.99.51";
+	char* ip="192.168.0.13";
 	int sockfd, portno, n;
-    	struct sockaddr_in serv_addr;
-    	struct hostent *server;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
 
-    	char buffer[256];
+    char buffer[256];
    	portno = atoi(port);
    	sockfd = socket(AF_INET, SOCK_STREAM, 0);
    	if (sockfd < 0) 
@@ -153,14 +207,14 @@ int connect_cli(char* port){
    	   fprintf(stderr,"ERROR, no such host\n");
    	   exit(0);
   	}
-    	bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *) &serv_addr, sizeof(serv_addr));
    	serv_addr.sin_family = AF_INET;
-    	bcopy((char *)server->h_addr,(char *)&serv_addr.sin_addr.s_addr,server->h_length);
-    	serv_addr.sin_port = htons(portno);
-    	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-        	error("ERROR connecting");
+    bcopy((char *)server->h_addr,(char *)&serv_addr.sin_addr.s_addr,server->h_length);
+    serv_addr.sin_port = htons(portno);
+    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+        error("ERROR connecting");
 	bzero(buffer,256);
-    	n = read(sockfd,buffer,255);
+    n = read(sockfd,buffer,255);
 	printf("%s\n",buffer);
 
 	return sockfd;
@@ -205,25 +259,25 @@ int main(int argc, char** argv)
 	fflush(stdout);
 	pthread_create(&threads[1], NULL, hilowrite, "...");
 
-     GtkWidget *window, *scrolled_win, *hbox, *vbox, *insert, *sendf;
+    GtkWidget *window, *scrolled_win, *hbox, *vbox, *insert, *sendf;
 	GtkTextBuffer *buffer;
 	GtkTextIter iter;
-     w = g_slice_new (Widgets);
+    w = g_slice_new (Widgets);
 
-     gtk_init (&argc, &argv);
+    gtk_init (&argc, &argv);
 
-     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-     gtk_window_set_title (GTK_WINDOW (window), "Text Iterators");
-     gtk_container_set_border_width (GTK_CONTAINER (window), 10);
-     gtk_widget_set_size_request (window, -1, 200);
+    window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title (GTK_WINDOW (window), "Text Iterators");
+    gtk_container_set_border_width (GTK_CONTAINER (window), 10);
+    gtk_widget_set_size_request (window, -1, 200);
 
-     w->textview = gtk_text_view_new ();
-     w->entry = gtk_entry_new ();
+    w->textview = gtk_text_view_new ();
+    w->entry = gtk_entry_new ();
 
-     insert = gtk_button_new_with_label ("Insert Text");
+    insert = gtk_button_new_with_label ("Insert Text");
 	sendf = gtk_button_new_with_label ("Atach file");
 
-     g_signal_connect (G_OBJECT (insert), "clicked",
+    g_signal_connect (G_OBJECT (insert), "clicked",
                G_CALLBACK (insert_text),
                (gpointer) w);
 
@@ -231,22 +285,22 @@ int main(int argc, char** argv)
                G_CALLBACK (sfile),
                (gpointer) w);
 	
-     scrolled_win = gtk_scrolled_window_new (NULL, NULL);
-     gtk_container_add (GTK_CONTAINER (scrolled_win), w->textview);
+    scrolled_win = gtk_scrolled_window_new (NULL, NULL);
+    gtk_container_add (GTK_CONTAINER (scrolled_win), w->textview);
 
-     hbox = gtk_hbox_new (FALSE, 5);
-     gtk_box_pack_start_defaults (GTK_BOX (hbox), w->entry);
-     gtk_box_pack_start_defaults (GTK_BOX (hbox), insert);
+    hbox = gtk_hbox_new (FALSE, 5);
+    gtk_box_pack_start_defaults (GTK_BOX (hbox), w->entry);
+    gtk_box_pack_start_defaults (GTK_BOX (hbox), insert);
 	gtk_box_pack_start_defaults (GTK_BOX (hbox), sendf);
 
-     vbox = gtk_vbox_new (FALSE, 5);
-     gtk_box_pack_start (GTK_BOX (vbox), scrolled_win, TRUE, TRUE, 0);
-     gtk_box_pack_start (GTK_BOX (vbox), hbox, FALSE, TRUE, 0);
+    vbox = gtk_vbox_new (FALSE, 5);
+    gtk_box_pack_start (GTK_BOX (vbox), scrolled_win, TRUE, TRUE, 0);
+    gtk_box_pack_start (GTK_BOX (vbox), hbox, FALSE, TRUE, 0);
 
-     gtk_container_add (GTK_CONTAINER (window), vbox);
-     gtk_widget_show_all (window);
+    gtk_container_add (GTK_CONTAINER (window), vbox);
+    gtk_widget_show_all (window);
 
-     gtk_main();
-     return 0;
+    gtk_main();
+    return 0;
 
 }

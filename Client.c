@@ -132,10 +132,16 @@ void* enviar(void* p)
 	id = (int*) p;
 	struct stat stat_buf;
 	char file_size[256];
+	printf("Ingrese nombre: ");
+	fgets(buffer , MAXLINE , stdin);
+	strcpy(filename,"ADD ");
+	strcat(filename,buffer);
+	send(*id,filename,MAXLINE,0);
+	bzero(filename,MAXLINE);
 	
 	while(1)
 	{	 
-		printf("\tIntroduce el mensaje");
+		printf("\tMensaje: ");
 		fgets(buffer , MAXLINE , stdin);
 		strtok(buffer,"\n");
 		if(strstr(buffer,"FILE")){

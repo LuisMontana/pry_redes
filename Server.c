@@ -18,7 +18,10 @@
 #define SERVER_ADDRESS	"127.0.0.1"
 #define MAXLINE		512
 #define MAXCLIENTS	10
-#define FILENAME    "/home/dmontenegro/Documentos/recieve.txt"
+//#define FILENAME    "/home/dmontenegro/Documentos/"
+
+char FILENAME[MAXLINE];
+
  
 int buscarCliente(char*);
 void subCadena(char*, char*, int, int);
@@ -43,7 +46,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in server_addr, client_addr;
     int i, status, id;
     pthread_t hilos[MAXCLIENTS];
- 
+ 	strcpy(FILENAME,"/home/dmontenegro/Documentos/");
     for(i=0;i<MAXCLIENTS;i++)
 	strcpy(vectorClientes[i].usuario, " ");
  
@@ -95,6 +98,27 @@ void subCadena(char *subCad, char *cad, int inicio, int cuantos)
      }
      subCad[j]='\0';
 }
+
+void sacarNombre(char *subCad,char *cad)
+{
+     int i,j=0;
+	 int sl2=0;
+	 int sl=0;
+	 
+	 for(i=strlen(cad)-1;i>0 ;i--)
+	 {
+		printf("%c\n",cad[i]);
+		if (cad[i]=='/')break;
+		
+     }
+	 i=i+1;
+	 while(i<strlen(cad)){
+		subCad[j]=cad[i];
+		j++;
+		i++;
+		}
+     subCad[j]='\0';
+}
  
 int buscarCliente(char* usuario)
 {
@@ -115,7 +139,7 @@ void* gestionaCliente(void* p)
 	char file_sizes[256];
 	ide = (int* ) p;
 	id = *ide;
-	char buffer[MAXLINE], nombre[MAXLINE-4], temp[MAXLINE-8];
+	char buffer[MAXLINE], nombre[MAXLINE-4], temp[MAXLINE-8],filen[MAXLINE];
 	int i, longitud, destino;
 	printf("\nid%d\n", id);
 	int remain_data=0;
@@ -123,7 +147,8 @@ void* gestionaCliente(void* p)
 	ssize_t len;
 	FILE *received_file;
 	off_t offset = 0;
- 
+
+
 	while(1)
 	{
 	recv(vectorClientes[id].socket,buffer,MAXLINE,0);
@@ -208,8 +233,17 @@ void* gestionaCliente(void* p)
         recv(vectorClientes[id].socket,buffer,MAXLINE,0);
         file_size = atoi(buffer);
         fprintf(stdout, "\nFile size : %d\n", file_size);
-
-        received_file = fopen(FILENAME, "w");
+		bzero(buffer,MAXLINE);
+		
+		sacarNombre(buffer,temp);
+		printf("%s\n",buffer);
+		fflush(stdout);
+		strcpy(temp,FILENAME);
+		strcat(temp,buffer);
+		printf("%s\n",temp);
+		fflush(stdout);
+		strcpy(FILENAME,temp);
+        received_file = fopen(temp, "w");
         if (received_file == NULL)
         {
                 fprintf(stderr, "Failed to open file foo --> %s\n", strerror(errno));

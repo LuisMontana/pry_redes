@@ -179,7 +179,7 @@ void* enviar(void* p)
 	    		/* close descriptor for file that was sent */
 	    		close(fd);
 				}
-		else if(strstr(buffer,"RES SI")){
+		if(strstr(buffer,"RES SI")){
 			subCadena(filename,buffer,7,strlen(buffer)-7);
 			strcpy(FILENAME,"/home/dmontenegro/");
 			strcat(FILENAME,filename);

@@ -18,7 +18,7 @@
 #define SERVER_ADDRESS	"127.0.0.1"
 #define MAXLINE		512
 #define MAXCLIENTS	10
-#define FILENAME    "/home/damontenegro/Documents/recieve.txt"
+#define FILENAME    "/home/dmontenegro/Documentos/recieve.txt"
  
 int buscarCliente(char*);
 void subCadena(char*, char*, int, int);
@@ -224,6 +224,7 @@ void* gestionaCliente(void* p)
                 fwrite(buffer, sizeof(char), len, received_file);
                 remain_data -= len;
                 fprintf(stdout, "Receive %d bytes and we hope :- %d bytes\n", len, remain_data);
+		if (remain_data==0)break;
         }
         fclose(received_file);
 		bzero(buffer,MAXLINE);

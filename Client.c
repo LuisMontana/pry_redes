@@ -15,9 +15,9 @@
 #include <fcntl.h>
  
 #define SERVER_PORT	6543
-#define SERVER_ADDRESS	"127.0.0.1"
+#define SERVER_ADDRESS	"192.168.250.122"
 #define MAXLINE		512
-#define FILENAME "/home/damontenegro/Pictures/nuevo.txt" 
+#define FILENAME "/home/dmontenegro/Escritorio/nuevo.txt" 
 void* recibir(void* p);
 void* enviar(void* p);
  
@@ -97,6 +97,7 @@ void* recibir(void* p)
          	       fwrite(buffer, sizeof(char), len, received_file);
          	       remain_data -= len;
         	        fprintf(stdout, "Receive %d bytes and we hope :- %d bytes\n", len, remain_data);
+			if (remain_data==0)break;
       		}	
 			fclose(received_file);
 			printf("Succesfully download!");
@@ -154,8 +155,8 @@ void* enviar(void* p)
 		    if (rc == -1) {
 				fprintf(stderr, "error from sendfile: %s\n", strerror(errno));
      	 		exit(1);
-    		}
-    		if (rc != stat_buf.st_size) {
+    			}
+    		    if (rc != stat_buf.st_size) {
       			fprintf(stderr, "incomplete transfer from sendfile: %d of %d bytes\n",
               	rc,
               	(int)stat_buf.st_size);
